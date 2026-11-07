@@ -1,0 +1,69 @@
+{
+  "_comment": "分级与判定规则。规则优先，零 AI 额度；LLM 仅作可选开关。",
+  "bot_actor_suffixes": ["[bot]", "-bot", "bot"],
+  "bot_actor_exact": ["github-actions[bot]", "coderabbitai[bot]", "dependabot[bot]", "pr-digest[bot]", "renovate[bot]"],
+  "noise_title_patterns": [
+    "^chore:\\s*刷新",
+    "^chore:\\s*sync\\s+.*nightly",
+    "^chore:\\s*sync\\s+.*components",
+    "^chore\\(deps\\)",
+    "^chore:\\s*update\\s+.*data",
+    "^Auto-?update",
+    "^Scheduled\\s+(sync|refresh)"
+  ],
+  "docs_title_patterns": ["^docs", "^i18n", "^translat", "^typo", "^\\s*翻译", "^\\s*文档"],
+  "sensitive_paths": [
+    "\\.c$", "\\.cc$", "\\.cpp$", "\\.cxx$", "\\.h$", "\\.hpp$",
+    "CMakeLists\\.txt$", "Android\\.mk$", "Application\\.mk$", "(^|/)\\.mk$",
+    "build\\.gradle", "gradle\\.properties$", "meson\\.build$", "Makefile$",
+    "(^|/)native/", "(^|/)jni/", "(^|/)src/main/cpp/", "(^|/)download/", "(^|/)engine/"
+  ],
+  "sensitive_hint": "命中敏感模块（C/C++ 或构建/下载引擎）：合并前先对 diff，C 代码务必真机验证。",
+  "version_patterns": ["\\bv?\\d+\\.\\d+\\.\\d+\\b", "\\bbreaking\\b", "\\bBREAKING CHANGE\\b", "^release", "^v\\d"],
+  "sync_pr_patterns": ["^sync", "同步参考上游", "merge upstream", "upstream sync", "^chore:\\s*sync"],
+  "levels": {
+    "P0": {
+      "desc": "实时单条推送",
+      "rules": [
+        "外部真人新建 Issue",
+        "外部真人在 Issue/PR 下的新评论与 Review",
+        "真实构建失败（排除 repo-monitor 自身）",
+        "高危安全告警 / 分支保护被关闭",
+        "管家自身心跳故障"
+      ]
+    },
+    "P1": {
+      "desc": "小时级聚合卡片",
+      "rules": [
+        "人工关键提交（非 bot、非噪声、命中敏感路径或版本号）",
+        "上游关键更新且本地落后（compare + 文件影响面）",
+        "Release 按批聚合",
+        "上游同步 PR 结果",
+        "错误总结与引入提交关联"
+      ]
+    },
+    "P2": {
+      "desc": "日报一行",
+      "rules": ["机器人提交/审查", "分支与 tag 增删", "Star/Fork 变化", "构建恢复", "部署状态"]
+    },
+    "DROP": {
+      "desc": "静默，不推送",
+      "rules": ["模板化 bot 评论正文", "chore 自动刷新提交", "Fork/Star 数字本身", "重复投递"]
+    }
+  },
+  "error_categories": [
+    {"key": "compile", "name": "编译错误", "patterns": ["error:", "compile error", "cannot find symbol", "no member named", "expected ';'", "fatal error:"], "hint": "先看报错文件与头文件包含路径，确认是否由上游改动引入"},
+    {"key": "link", "name": "链接错误", "patterns": ["undefined reference", "ld: cannot find", "cannot find -l", "unresolved external", "multiple definition of", "relocation truncated"], "hint": "多为缺 so 库或 ABI 不匹配，检查 NDK 版本与链接顺序"},
+    {"key": "dependency", "name": "缺依赖/环境", "patterns": ["no such file or directory", "command not found", "could not resolve", "failed to download", "module not found", "package not found", "404 not found"], "hint": "检查依赖下载与缓存，确认网络与镜像源"},
+    {"key": "timeout", "name": "超时/中断", "patterns": ["timed out", "timeout", "killed", "the operation was canceled", "job was canceled", "runner has lost communication"], "hint": "先重跑一次判断是否偶发；连续出现再看资源占用"},
+    {"key": "signature", "name": "签名/证书", "patterns": ["keystore", "signing", "invalid signature", "certificate", "jarsigner", "apksigner failed"], "hint": "检查签名配置与密钥是否过期"},
+    {"key": "permission", "name": "权限", "patterns": ["permission denied", "403 forbidden", "401 unauthorized", "resource not accessible", "bad credentials"], "hint": "检查 token 权限范围与 secret 是否过期"},
+    {"key": "test", "name": "测试失败", "patterns": ["tests failed", "assertionerror", "f test", "failures: [1-9]"], "hint": "看失败用例名与断言，判断是代码回归还是环境差异"}
+  ],
+  "aggregation": {
+    "release_batch_window_minutes": 180,
+    "p1_max_items_per_card": 8,
+    "p2_digest_max_items": 12
+  },
+  "llm": {"enabled": false, "note": "保持 false 即零 AI 额度；开启需配置 LLM_API_KEY，失败自动降级回规则版"}
+}

@@ -1,0 +1,165 @@
+name: GitHub Monitor (v2 readonly)
+
+on:
+  schedule:
+    # 错峰到 7/37 分：整点与半点是 GitHub Actions 最挤的时段，实测
+    # 排队延迟明显；错开可提高 cron 达成率。仍保留定时兜底，
+    # 若要准实时，请用外部定时器触发本仓库的 workflow_dispatch。
+    - cron: '7,37 * * * *'
+  workflow_dispatch:
+    inputs:
+      demo:
+        description: '只发一张合成数据的分类合并卡（用于验证渲染效果，不采集、不写状态）'
+        required: false
+        default: 'false'
+        type: choice
+        options:
+          - 'false'
+          - 'true'
+
+permissions:
+  contents: write   # 仅用于 checkout 与回写本仓库 state.json
+  actions: read
+
+concurrency:
+  group: monitor
+  cancel-in-progress: false
+
+jobs:
+  # 手动「效果测试」：用纯合成数据走生产同款 build_digest + send_card 链路，
+  # 往飞书群真发一张可折叠的分类汇总卡。不读 state、不采集、不写盘。
+  demo:
+    if: github.event_name == 'workflow_dispatch' && inputs.demo == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Send demo merged card
+        env:
+          FEISHU_WEBHOOK: ${{ secrets.FEISHU_WEBHOOK }}
+          FEISHU_SECRET: ${{ secrets.FEISHU_SECRET }}
+        run: python3 monitor.py --demo
+
+  monitor:
+    # 勾了 demo 就不跑正常巡检，避免一次手动触发同时干两件事。
+    if: github.event_name != 'workflow_dispatch' || inputs.demo != 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        # 不再指定可写 PAT：使用 Actions 自带的 GITHUB_TOKEN，只作用于本仓库。
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      # 只读守卫必须在 Checkout 之后：此时脚本才存在于工作区。
+      # 自检与离线回放刻意「不注入」真实清单，保证公开模板状态可独立验证。
+      - name: Readonly guard
+        run: |
+          python3 tools/check_readonly.py
+          python3 monitor.py --self-test
+
+      - name: Replay acceptance (offline)
+        run: python3 tools/replay.py
+
+      - name: Heartbeat guard
+        env:
+          MONITOR_CONFIG: ${{ secrets.MONITOR_CONFIG }}
+          PRIVACY_SALT: ${{ secrets.PRIVACY_SALT }}
+          FEISHU_WEBHOOK: ${{ secrets.FEISHU_WEBHOOK }}
+          FEISHU_SECRET: ${{ secrets.FEISHU_SECRET }}
+        run: python3 monitor.py --check-heartbeat
+
+      - name: Run monitor
+        env:
+          # 只读凭证：fine-grained PAT 或 GitHub App installation token，绝不赋予写权限。
+          GH_READ_TOKEN: ${{ secrets.GH_READ_TOKEN }}
+          # 真实仓库清单（JSON 字符串）只存在 Secrets 里，仓库内只有占位模板。
+          MONITOR_CONFIG: ${{ secrets.MONITOR_CONFIG }}
+          # 隐私投影盐值：换了它旧 state 里的 token 就还原不了，等价于重置去重账。
+          PRIVACY_SALT: ${{ secrets.PRIVACY_SALT }}
+          FEISHU_WEBHOOK: ${{ secrets.FEISHU_WEBHOOK }}
+          # 可选：飞书机器人开启「签名校验」时填，未开启则留空。
+          FEISHU_SECRET: ${{ secrets.FEISHU_SECRET }}
+        run: python3 monitor.py
+
+      - name: Verify no pollution
+        if: success()
+        env:
+          GH_READ_TOKEN: ${{ secrets.GH_READ_TOKEN }}
+          MONITOR_CONFIG: ${{ secrets.MONITOR_CONFIG }}
+        run: python3 tools/verify_no_pollution.py || true
+
+      - name: Push state
+        if: always()
+        # 写回的是「隐私投影态」：真实仓库名已被替换为不可逆 token，
+        # 因此即使这个仓库公开，也不会暴露监控清单。
+        # 零历史关键：仓库只有唯一一个无父根提交，用 --amend 覆盖它而不追加提交，
+        # 再 force 推回 main。这样每 30 分钟一轮巡检也不会产生第 2 个提交，
+        # 公开模板始终只有一个干净的初始提交，无需事后手工清理提交记录。
+        run: |
+          if [ ! -f state.json ]; then echo "本轮未生成 state.json，跳过回写"; exit 0; fi
+          git config user.name "repo-monitor[bot]"
+          git config user.email "repo-monitor[bot]@users.noreply.github.com"
+          git add -f state.json
+          if git diff --cached --quiet; then echo "state 无变化，跳过提交"; exit 0; fi
+          git commit --amend --no-edit -q
+          for i in 1 2 3; do
+            if git push --force origin "HEAD:${{ github.ref_name }}"; then
+              echo "state 已回写（amend 单一根提交，历史仍为 1 个提交）"; exit 0
+            fi
+            echo "第 $i 次回写失败，稍后重试"
+            sleep $((i * 3))
+          done
+          echo "::warning::state 回写失败（force push 可能被分支保护拒绝），下一轮会重试"
+          exit 1
+
+      # 失败独立告警：不依赖 Python 脚本，即使 Checkout 就挂了也能报。
+      - name: Self failure alert
+        if: failure()
+        env:
+          FEISHU_WEBHOOK: ${{ secrets.FEISHU_WEBHOOK }}
+          FEISHU_SECRET: ${{ secrets.FEISHU_SECRET }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        # 内联 Python，只用标准库：即使工作区没有任何仓库文件，也照样能报。
+        # 自带飞书签名校验支持，与 src/notify.py 的算法完全一致。
+        run: |
+          python3 - <<'PY'
+          import base64, hashlib, hmac, json, os, time, urllib.request
+          hook = os.environ.get("FEISHU_WEBHOOK", "")
+          if not hook:
+              print("未配置 FEISHU_WEBHOOK，跳过告警")
+              raise SystemExit(0)
+          lines = [
+              "repo-monitor 本轮运行失败。",
+              "飞书安静不代表没有事件，请检查下面的运行记录。",
+              "运行记录：" + os.environ.get("RUN_URL", ""),
+          ]
+          body = {"msg_type": "post", "content": {"post": {"zh_cn": {
+              "title": "【P0】repo-monitor 自身运行失败",
+              "content": [[{"tag": "text", "text": x}] for x in lines],
+          }}}}
+          secret = os.environ.get("FEISHU_SECRET", "")
+          if secret:
+              ts = str(int(time.time()))
+              sign = base64.b64encode(hmac.new(
+                  ("%s\n%s" % (ts, secret)).encode("utf-8"),
+                  digestmod=hashlib.sha256).digest()).decode("utf-8")
+              body["timestamp"], body["sign"] = ts, sign
+          req = urllib.request.Request(
+              hook, data=json.dumps(body).encode("utf-8"),
+              headers={"Content-Type": "application/json"}, method="POST")
+          try:
+              with urllib.request.urlopen(req, timeout=20) as r:
+                  print("告警已发送:", r.read().decode("utf-8")[:200])
+          except Exception as e:
+              print("告警发送失败（不影响本轮结论）:", e)
+          PY
