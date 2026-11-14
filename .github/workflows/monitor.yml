@@ -1,0 +1,171 @@
+name: GitHub Monitor (v2 readonly)
+
+on:
+  schedule:
+    # 15 分钟一轮（7/22/37/52 分，全部避开整点与半点）。
+    # 实测 GitHub 对公开仓库的 schedule 达成率很低：30 分钟表达式下
+    # 30 小时内只成功 6 轮，间隔 3.5–7 小时。加密触发点可显著提高
+    # 「至少跑成一轮」的概率；仍属尽力而为，若要准实时请用外部定时器
+    # 触发本仓库的 workflow_dispatch。
+    - cron: '7,22,37,52 * * * *'
+  workflow_dispatch:
+    inputs:
+      demo:
+        description: '只发一张合成数据的分类合并卡（用于验证渲染效果，不采集、不写状态）'
+        required: false
+        default: 'false'
+        type: choice
+        options:
+          - 'false'
+          - 'true'
+
+permissions:
+  contents: write   # 仅用于 checkout 与回写本仓库 state.json
+  actions: read
+
+concurrency:
+  group: monitor
+  cancel-in-progress: false
+
+jobs:
+  # 手动「效果测试」：用纯合成数据走生产同款 build_digest + send_card 链路，
+  # 往飞书群真发一张可折叠的分类汇总卡。不读 state、不采集、不写盘。
+  demo:
+    if: github.event_name == 'workflow_dispatch' && inputs.demo == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Send demo merged card
+        env:
+          FEISHU_WEBHOOK: ${{ secrets.FEISHU_WEBHOOK }}
+          FEISHU_SECRET: ${{ secrets.FEISHU_SECRET }}
+        run: python3 monitor.py --demo
+
+  monitor:
+    # 勾了 demo 就不跑正常巡检，避免一次手动触发同时干两件事。
+    if: github.event_name != 'workflow_dispatch' || inputs.demo != 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        # 不再指定可写 PAT：使用 Actions 自带的 GITHUB_TOKEN，只作用于本仓库。
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      # 只读守卫必须在 Checkout 之后：此时脚本才存在于工作区。
+      # 自检与离线回放刻意「不注入」真实清单，保证公开模板状态可独立验证。
+      # 离线验收只在手动触发时跑：cron 每 15 分钟一轮，重复跑自检/回放
+      # 既拖长单轮耗时，又多两个可能让整个 job 标红的失败点。
+      - name: Readonly guard
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          python3 tools/check_readonly.py
+          python3 monitor.py --self-test
+
+      - name: Replay acceptance (offline)
+        if: github.event_name == 'workflow_dispatch'
+        run: python3 tools/replay.py
+
+      # 已移除 Heartbeat guard：它读的是上一轮回写的 state，与 pipeline 内的
+      # heartbeat_card 完全重复；旧标题还被写成「自身运行失败」，导致一轮内
+      # 出现两条同名/近义告警。心跳判断统一交给 pipeline（走去重账、按天限频）。
+
+      - name: Run monitor
+        env:
+          # 只读凭证：fine-grained PAT 或 GitHub App installation token，绝不赋予写权限。
+          GH_READ_TOKEN: ${{ secrets.GH_READ_TOKEN }}
+          # 真实仓库清单（JSON 字符串）只存在 Secrets 里，仓库内只有占位模板。
+          MONITOR_CONFIG: ${{ secrets.MONITOR_CONFIG }}
+          # 隐私投影盐值：换了它旧 state 里的 token 就还原不了，等价于重置去重账。
+          PRIVACY_SALT: ${{ secrets.PRIVACY_SALT }}
+          FEISHU_WEBHOOK: ${{ secrets.FEISHU_WEBHOOK }}
+          # 可选：飞书机器人开启「签名校验」时填，未开启则留空。
+          FEISHU_SECRET: ${{ secrets.FEISHU_SECRET }}
+        run: python3 monitor.py
+
+      - name: Verify no pollution
+        if: success()
+        env:
+          GH_READ_TOKEN: ${{ secrets.GH_READ_TOKEN }}
+          MONITOR_CONFIG: ${{ secrets.MONITOR_CONFIG }}
+        run: python3 tools/verify_no_pollution.py || true
+
+      - name: Push state
+        if: always()
+        # 回写是次要动作：采集与推送本轮已完成，不能因为它失败就把整个
+        # job 标红、进而误发「自身运行失败」告警。
+        continue-on-error: true
+        # 写回的是「隐私投影态」：真实仓库名已被替换为不可逆 token，
+        # 因此即使这个仓库公开，也不会暴露监控清单。
+        # 零历史关键：仓库只有唯一一个无父根提交，用 --amend 覆盖它而不追加提交，
+        # 再 force 推回 main。这样每 30 分钟一轮巡检也不会产生第 2 个提交，
+        # 公开模板始终只有一个干净的初始提交，无需事后手工清理提交记录。
+        run: |
+          if [ ! -f state.json ]; then echo "本轮未生成 state.json，跳过回写"; exit 0; fi
+          git config user.name "repo-monitor[bot]"
+          git config user.email "repo-monitor[bot]@users.noreply.github.com"
+          git add -f state.json
+          if git diff --cached --quiet; then echo "state 无变化，跳过提交"; exit 0; fi
+          git commit --amend --no-edit -q
+          for i in 1 2 3; do
+            if git push --force origin "HEAD:${{ github.ref_name }}"; then
+              echo "state 已回写（amend 单一根提交，历史仍为 1 个提交）"; exit 0
+            fi
+            echo "第 $i 次回写失败，稍后重试"
+            sleep $((i * 3))
+          done
+          echo "::warning::state 回写失败（force push 可能被分支保护拒绝），下一轮会重试"
+          echo "采集与推送本轮已完成，回写失败不判定为整个巡检失败"
+          exit 0
+
+      # 失败独立告警：不依赖 Python 脚本，即使 Checkout 就挂了也能报。
+      - name: Self failure alert
+        if: failure()
+        env:
+          FEISHU_WEBHOOK: ${{ secrets.FEISHU_WEBHOOK }}
+          FEISHU_SECRET: ${{ secrets.FEISHU_SECRET }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        # 内联 Python，只用标准库：即使工作区没有任何仓库文件，也照样能报。
+        # 自带飞书签名校验支持，与 src/notify.py 的算法完全一致。
+        run: |
+          python3 - <<'PY'
+          import base64, hashlib, hmac, json, os, time, urllib.request
+          hook = os.environ.get("FEISHU_WEBHOOK", "")
+          if not hook:
+              print("未配置 FEISHU_WEBHOOK，跳过告警")
+              raise SystemExit(0)
+          lines = [
+              "本轮巡检未能跑完（多数是 GitHub 调度或网络抖动，少数是脚本异常）。",
+              "下一轮通常会自动恢复；若连续多轮都出现，再看运行记录。",
+              "运行记录：" + os.environ.get("RUN_URL", ""),
+          ]
+          body = {"msg_type": "post", "content": {"post": {"zh_cn": {
+              "title": "【P1】repo-monitor 本轮巡检未跑完",
+              "content": [[{"tag": "text", "text": x}] for x in lines],
+          }}}}
+          secret = os.environ.get("FEISHU_SECRET", "")
+          if secret:
+              ts = str(int(time.time()))
+              sign = base64.b64encode(hmac.new(
+                  ("%s\n%s" % (ts, secret)).encode("utf-8"),
+                  digestmod=hashlib.sha256).digest()).decode("utf-8")
+              body["timestamp"], body["sign"] = ts, sign
+          req = urllib.request.Request(
+              hook, data=json.dumps(body).encode("utf-8"),
+              headers={"Content-Type": "application/json"}, method="POST")
+          try:
+              with urllib.request.urlopen(req, timeout=20) as r:
+                  print("告警已发送:", r.read().decode("utf-8")[:200])
+          except Exception as e:
+              print("告警发送失败（不影响本轮结论）:", e)
+          PY
