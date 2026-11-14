@@ -1,0 +1,18 @@
+__pycache__/
+*.py[cod]
+*.log
+.env
+.venv/
+.pytest_cache/
+.coverage
+state.json.bak
+*.tmp
+.DS_Store
+# 安装脚本的备份放在仓库外；万一有人手动放进来，也严禁提交（备份里可能含旧注入器的明文密钥）
+backup-*/
+repo-monitor-backup-*/
+
+# 真实仓库清单：只走 Secrets 注入或本机文件，绝不入库（公开仓库会泄露监控目标）
+config/settings.local.json
+config/settings.*.local.json
+私有档案/

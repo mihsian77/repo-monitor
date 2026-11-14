@@ -1,0 +1,134 @@
+{
+  "_comment": "合成示例文本 25",
+  "captured_at": "2026-11-05T12:00:00Z",
+  "events": [
+    {
+      "id": "upstream:your-org/app-droid-ui:d1bd23d0001",
+      "kind": "upstream",
+      "repo": "your-org/app-droid-ui",
+      "actor": "upstream-org",
+      "created_at": "2026-11-04T09:12:00Z",
+      "title": "feat: rework gpu clock scaling",
+      "body": "",
+      "url": "https://example.invalid/upstream/0",
+      "meta": {
+        "upstream": "upstream-org/droid-ui",
+        "sha": "d1bd23d0001",
+        "local_branch": "main",
+        "compare_status": "ok",
+        "ahead_by": 2,
+        "behind_by": 240,
+        "total_commits": 240,
+        "status": "behind",
+        "files": [
+          "app/src/main/cpp/CMakeLists.txt",
+          "module/driver_a.c",
+          "module/render_b.cpp",
+          "module/info_c.c",
+          "README.md"
+        ],
+        "files_truncated": false,
+        "files_status": "ok",
+        "commits_seen": 240,
+        "source": "upstream"
+      }
+    },
+    {
+      "id": "upstream:your-org/app-suite:a7c91fe0002",
+      "kind": "upstream",
+      "repo": "your-org/app-suite",
+      "actor": "upstream-org",
+      "created_at": "2026-11-03T18:40:00Z",
+      "title": "fix: sample plugin rebuild",
+      "body": "",
+      "url": "https://example.invalid/upstream/1",
+      "meta": {
+        "upstream": "upstream-org/suite",
+        "sha": "a7c91fe0002",
+        "local_branch": "suite-plus/4.1",
+        "compare_status": "commit_detail",
+        "files": [
+          "app/src/main/cpp/plugin_a.c",
+          "app/src/main/cpp/CMakeLists.txt",
+          "bundle.tar.zst",
+          "docs/changelog.md"
+        ],
+        "files_truncated": false,
+        "files_status": "ok",
+        "source": "upstream"
+      }
+    },
+    {
+      "id": "upstream:your-org/lib-render:5e1b0aa0003",
+      "kind": "upstream",
+      "repo": "your-org/lib-render",
+      "actor": "github-actions[bot]",
+      "created_at": "2026-11-05T07:05:00Z",
+      "title": "chore: refresh driver table",
+      "body": "",
+      "url": "https://example.invalid/upstream/2",
+      "meta": {
+        "upstream": "upstream-org/lib-render",
+        "sha": "5e1b0aa0003",
+        "local_branch": "main",
+        "compare_status": "unavailable",
+        "files": [],
+        "files_truncated": false,
+        "files_status": "unavailable",
+        "source": "upstream"
+      }
+    },
+    {
+      "id": "upstream:your-org/app-file-manager:9f0cc1d0004",
+      "kind": "upstream",
+      "repo": "your-org/app-file-manager",
+      "actor": "upstream-org",
+      "created_at": "2026-11-04T22:31:00Z",
+      "title": "refactor: native file ops",
+      "body": "",
+      "url": "https://example.invalid/upstream/3",
+      "meta": {
+        "upstream": "upstream-org/file-manager",
+        "sha": "9f0cc1d0004",
+        "local_branch": "main",
+        "compare_status": "ok",
+        "ahead_by": 0,
+        "behind_by": 310,
+        "total_commits": 310,
+        "status": "behind",
+        "files": [
+          "module/fileio.c",
+          "README.md"
+        ],
+        "files_truncated": true,
+        "files_status": "ok",
+        "commits_seen": 250,
+        "source": "upstream"
+      }
+    },
+    {
+      "id": "upstream:your-org/app-graphics:1a2b3c40005",
+      "kind": "upstream",
+      "repo": "your-org/app-graphics",
+      "actor": "upstream-org",
+      "created_at": "2026-11-02T11:00:00Z",
+      "title": "docs: update readme",
+      "body": "",
+      "url": "https://example.invalid/upstream/4",
+      "meta": {
+        "upstream": "upstream-org/graphics-test",
+        "sha": "1a2b3c40005",
+        "local_branch": "main",
+        "compare_status": "ok",
+        "ahead_by": 0,
+        "behind_by": 0,
+        "total_commits": 0,
+        "status": "identical",
+        "files": [],
+        "files_truncated": false,
+        "files_status": "unavailable",
+        "source": "upstream"
+      }
+    }
+  ]
+}

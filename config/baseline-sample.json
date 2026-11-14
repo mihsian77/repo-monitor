@@ -1,0 +1,146 @@
+{
+  "captured_at": "2026-11-05T12:00:00Z",
+  "source": "GET /users/your-org/repos?per_page=100&type=owner&sort=updated",
+  "repos": {
+    "your-org/component-core": {
+      "pushed_at": "2026-11-05T10:39:01Z",
+      "default_branch": "main",
+      "fork": false,
+      "size_kb": 31,
+      "open_issues_count": 0
+    },
+    "your-org/app-primary": {
+      "pushed_at": "2026-11-05T10:00:45Z",
+      "default_branch": "main",
+      "fork": false,
+      "size_kb": 27107,
+      "open_issues_count": 2
+    },
+    "your-org/repo-monitor": {
+      "pushed_at": "2026-10-29T09:33:01Z",
+      "default_branch": "main",
+      "fork": false,
+      "size_kb": 371,
+      "open_issues_count": 0
+    },
+    "your-org/builder-driver": {
+      "pushed_at": "2026-11-05T08:59:39Z",
+      "default_branch": "main",
+      "fork": false,
+      "size_kb": 40,
+      "open_issues_count": 0
+    },
+    "your-org/lib-gateway": {
+      "pushed_at": "2026-11-05T05:24:11Z",
+      "default_branch": "main",
+      "fork": false,
+      "size_kb": 3442,
+      "open_issues_count": 0
+    },
+    "your-org/app-droid-ui": {
+      "pushed_at": "2026-11-05T05:23:24Z",
+      "default_branch": "main",
+      "fork": true,
+      "size_kb": 302967,
+      "open_issues_count": 0
+    },
+    "your-org/app-backup": {
+      "pushed_at": "2026-09-24T16:34:09Z",
+      "default_branch": "main",
+      "fork": false,
+      "size_kb": 0,
+      "open_issues_count": 1
+    },
+    "your-org/service-heartbeat": {
+      "pushed_at": "2026-10-29T23:24:47Z",
+      "default_branch": "main",
+      "fork": false,
+      "size_kb": 908263,
+      "open_issues_count": 0
+    },
+    "your-org/profile-readme": {
+      "pushed_at": "2026-10-25T04:23:01Z",
+      "default_branch": "main",
+      "fork": false,
+      "size_kb": 551,
+      "open_issues_count": 0
+    },
+    "your-org/lib-graphics": {
+      "pushed_at": "2026-10-26T13:49:31Z",
+      "default_branch": "main",
+      "fork": false,
+      "size_kb": 144,
+      "open_issues_count": 0
+    },
+    "your-org/plugin-hud": {
+      "pushed_at": "2026-10-26T13:25:15Z",
+      "default_branch": "main",
+      "fork": false,
+      "size_kb": 1011,
+      "open_issues_count": 0
+    },
+    "your-org/app-suite": {
+      "pushed_at": "2026-10-26T13:27:01Z",
+      "default_branch": "suite-plus/4.1",
+      "fork": true,
+      "size_kb": 380521,
+      "open_issues_count": 0
+    },
+    "your-org/plugin-input": {
+      "pushed_at": "2026-10-22T15:53:01Z",
+      "default_branch": "main",
+      "fork": false,
+      "size_kb": 64,
+      "open_issues_count": 0
+    },
+    "your-org/builder-sample": {
+      "pushed_at": "2026-10-22T15:53:00Z",
+      "default_branch": "main",
+      "fork": false,
+      "size_kb": 11,
+      "open_issues_count": 0
+    },
+    "your-org/runtime-sample": {
+      "pushed_at": "2026-10-22T15:52:58Z",
+      "default_branch": "main",
+      "fork": false,
+      "size_kb": 51524,
+      "open_issues_count": 0
+    },
+    "your-org/lib-render": {
+      "pushed_at": "2026-10-22T15:52:56Z",
+      "default_branch": "main",
+      "fork": true,
+      "size_kb": 222,
+      "open_issues_count": 0
+    },
+    "your-org/app-file-manager": {
+      "pushed_at": "2026-10-22T15:52:52Z",
+      "default_branch": "main",
+      "fork": true,
+      "size_kb": 2184,
+      "open_issues_count": 0
+    },
+    "your-org/mirror-components": {
+      "pushed_at": "2026-10-22T15:52:53Z",
+      "default_branch": "main",
+      "fork": false,
+      "size_kb": 41,
+      "open_issues_count": 0
+    },
+    "your-org/app-graphics": {
+      "pushed_at": "2026-10-22T15:52:51Z",
+      "default_branch": "main",
+      "fork": true,
+      "size_kb": 5815,
+      "open_issues_count": 0
+    },
+    "your-org/app-console": {
+      "pushed_at": "2026-10-15T09:02:01Z",
+      "default_branch": "main",
+      "fork": false,
+      "size_kb": 20,
+      "open_issues_count": 0
+    }
+  }
+}
