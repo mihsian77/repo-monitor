@@ -1,0 +1,53 @@
+{
+  "_comment": "模板配置：这里只有占位值，可以安全地公开。真实仓库清单请用 MONITOR_CONFIG（Actions Secret，JSON 字符串）或 config/settings.local.json（本机，已在 .gitignore）注入；只有身份类字段（owner/repos/extra_repos/upstream/upstream_candidates/default_branches/bots/self_repo）会被覆盖，行为参数以本文件为准。",
+  "_readme": "clone 后照着 config/settings.example.json 填自己的清单即可。仓库内不保留任何真实账号名、仓库名、上游来源或推送地址。",
+  "owner": "your-org",
+  "repos": [
+    "your-org/repo-a",
+    "your-org/repo-b",
+    "your-org/repo-c"
+  ],
+  "extra_repos": [],
+  "upstream_candidates": {},
+  "default_branches": {
+    "your-org/repo-a": "main",
+    "your-org/repo-b": "main",
+    "your-org/repo-c": "main"
+  },
+  "upstream": {
+    "your-org/repo-b": "upstream-org/project-b"
+  },
+  "bots": [
+    "github-actions[bot]",
+    "dependabot[bot]",
+    "renovate[bot]"
+  ],
+  "self_repo": "your-org/repo-monitor",
+  "daily_checkin": {
+    "enabled": true,
+    "_comment": "每天发一条『管家在岗』，把『飞书安静』和『管家挂了』分开。按北京时间一天一条，只有推送成功才记账；不受 quiet_hours 影响。"
+  },
+  "grouping": {
+    "enabled": true,
+    "min_cards": 2,
+    "max_payload_bytes": 18000,
+    "max_lines_per_card": 6,
+    "max_groups": 12,
+    "expand_levels": ["P0", "HEARTBEAT"],
+    "_comment": "分类合并转发（QQ 合并转发效果）：本轮多张卡片打成一张飞书 interactive 卡片，按类别分折叠面板、P0 默认展开，群里一轮只多一条消息。飞书自定义机器人请求体上限 20KB，这里留 2KB 余量，超了逐级裁剪明细并如实标注。卡片发不出去（旧客户端不支持 JSON 2.0 / 9499）自动降级为逐条富文本，绝不丢消息。设 enabled=false 可一键退回旧的逐条推送。每日在岗确认始终单独发，不并入汇总卡。"
+  },
+  "quiet_hours": {
+    "enabled": false,
+    "start": "23:30",
+    "end": "08:00",
+    "tz": "+08:00"
+  },
+  "thresholds": {
+    "heartbeat_max_minutes": 720,
+    "_comment": "心跳超时只用于判断「管家彻底挂了」。GitHub Actions 的 schedule 对公开仓库不保证准时，实测成功巡检间隔 3.5–7 小时；原 90 分钟阈值会让每一轮都误报「没上班」。放宽到 12 小时并按天去重后，只有连「每日在岗」都没发才会告警。",
+    "bot_job_silence_hours": 26,
+    "upstream_silence_days": 21,
+    "issue_unanswered_days": 3,
+    "todo_escalate_days": 7
+  }
+}

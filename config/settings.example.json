@@ -1,0 +1,19 @@
+{
+  "_comment": "复制为 config/settings.local.json（已在 .gitignore，不会入库），填入你自己的清单。只有身份类字段会被读取；行为参数以 config/settings.json 为准。也可以把同样的内容压成一行 JSON，填到 Actions Secret MONITOR_CONFIG。",
+  "owner": "your-github-login",
+  "self_repo": "your-github-login/repo-monitor",
+  "repos": [
+    "your-github-login/repo-a",
+    "your-github-login/repo-b"
+  ],
+  "extra_repos": [],
+  "default_branches": {
+    "your-github-login/repo-a": "main",
+    "your-github-login/repo-b": "main"
+  },
+  "upstream": {
+    "your-github-login/repo-b": "upstream-owner/project-b"
+  },
+  "upstream_candidates": {},
+  "bots": ["github-actions[bot]", "dependabot[bot]", "renovate[bot]"]
+}
